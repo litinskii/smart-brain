@@ -36,7 +36,9 @@ const initialState = {
     name: "",
     email: "",
     entries: 0,
-    joined: ""
+    joined: "",
+    pet: "",
+    age: ""
   }
 };
 
@@ -44,6 +46,39 @@ class App extends Component {
   constructor() {
     super();
     this.state = initialState;
+  }
+
+  componentDidMount() {
+    const token = window.sessionStorage.getItem("token");
+    if (token) {
+      fetch("http://192.168.99.101:3000/signin", {
+        method: "post",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token
+        }
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.id) {
+            fetch(`http://192.168.99.101:3000/profile/${data.id}`, {
+              method: "get",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token
+              }
+            })
+              .then(response => response.json())
+              .then(user => {
+                if (user && user.email) {
+                  this.loadUser(user);
+                  this.onRouteChange("home");
+                }
+              });
+          }
+        })
+        .catch(console.log);
+    }
   }
 
   loadUser = data => {
@@ -83,10 +118,11 @@ class App extends Component {
   };
 
   onButtonSubmit = () => {
+    const token = window.sessionStorage.getItem("token");
     this.setState({ imageUrl: this.state.input });
     fetch("http://192.168.99.101:3000/imageurl", {
       method: "post",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: token },
       body: JSON.stringify({
         input: this.state.input
       })
@@ -96,7 +132,10 @@ class App extends Component {
         if (response) {
           fetch("http://192.168.99.101:3000/image", {
             method: "put",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: token
+            },
             body: JSON.stringify({
               id: this.state.user.id
             })
@@ -131,18 +170,30 @@ class App extends Component {
   };
 
   render() {
-    const { isSignedIn, imageUrl, route, boxes, isProfileOpen } = this.state;
+    const {
+      isSignedIn,
+      imageUrl,
+      route,
+      boxes,
+      isProfileOpen,
+      user
+    } = this.state;
     return (
       <div className="App">
         <Particles className="particles" params={particlesOptions} />
         <Navigation
+          loadUser={this.loadUser}
           isSignedIn={isSignedIn}
           onRouteChange={this.onRouteChange}
           toggleModal={this.toggleModal}
         />
         {isProfileOpen && (
           <Modal>
-            <Profile toggleModal={this.toggleModal} />
+            <Profile
+              toggleModal={this.toggleModal}
+              user={user}
+              loadUser={this.loadUser}
+            />
           </Modal>
         )}
         {route === "home" ? (
